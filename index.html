@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <title>网站前置页 - 检测线路</title>
+  <link rel="stylesheet" href="./reset.min.css" />
+  <style>
+    body {
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+      background-image: url(https://source.unsplash.com/random/1920x1080/?scenery);
+      background-color: #000;
+      color: #fff;
+    }
+
+    body:before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      background-image: linear-gradient(#000, transparent);
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    }
+
+    h1 {
+      margin-bottom: 0.5rem;
+      font-size: 3rem;
+      font-weight: bold;
+      line-height: 1.33333;
+    }
+
+    .text {
+      font-size: 1.5rem;
+      line-height: 1.33333;
+    }
+
+    .lds-ellipsis {
+      display: inline-block;
+      position: relative;
+      width: 40px;
+      height: 10px;
+    }
+
+    .lds-ellipsis div {
+      position: absolute;
+      top: 2px;
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: #fff;
+      animation-timing-function: cubic-bezier(0, 1, 1, 0);
+    }
+
+    .lds-ellipsis div:nth-child(1) {
+      left: 6px;
+      animation: lds-ellipsis1 0.6s infinite;
+    }
+
+    .lds-ellipsis div:nth-child(2) {
+      left: 6px;
+      animation: lds-ellipsis2 0.6s infinite;
+    }
+
+    .lds-ellipsis div:nth-child(3) {
+      left: 17px;
+      animation: lds-ellipsis2 0.6s infinite;
+    }
+
+    .lds-ellipsis div:nth-child(4) {
+      left: 28px;
+      animation: lds-ellipsis3 0.6s infinite;
+    }
+
+    @keyframes lds-ellipsis1 {
+      0% {
+        transform: scale(0);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    @keyframes lds-ellipsis2 {
+      0% {
+        transform: translate(0, 0);
+      }
+
+      100% {
+        transform: translate(10px, 0);
+      }
+    }
+
+    @keyframes lds-ellipsis3 {
+      0% {
+        transform: scale(1);
+      }
+
+      100% {
+        transform: scale(0);
+      }
+    }
+
+    @media (max-width: 768px) {
+      html {
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div>
+    <h1>线路检测页</h1>
+    <div class="text" id="info">
+      线路测试中
+      <div class="lds-ellipsis">
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+      </div>
+      将自动跳转可用域名<br />请耐心等候
+    </div>
+  </div>
+
+  <script>
+    // 获取当前页面的 URL
+    const url = window.location.href;
+
+    // 解析 URL，并获取查询参数
+    const urlParams = new URL(url);
+    let path = ''; // 初始化 path 为空字符串
+    const queryParams = {};
+
+    // 遍历所有查询参数并放入对象中
+    urlParams.searchParams.forEach((value, key) => {
+      if (key === "path") {
+        path = value; // 获取 path 参数
+      } else {
+        queryParams[key] = value; // 获取其他查询参数
+      }
+    });
+
+    // 拼接 URL 和路径
+    const joinUrlAndPath = (url, path) => {
+      url = url.replace(/\/+$/, ''); // 移除 URL 末尾的斜杠
+      path = path.replace(/^\/+/, ''); // 移除路径开头的斜杠
+      return `${url}/${path}`; // 使用 "/" 将 URL 和路径连接在一起
+    };
+
+    // 获取并解码 Base64 加密的 data.json
+    const fetchData = async () => {
+      try {
+        const res = await fetch("./data.json?t=" + Date.now());
+        if (!res.ok) throw new Error("无法加载数据");
+        
+        const encodedData = await res.text(); // 获取的是 Base64 编码的字符串
+        const decodedData = atob(encodedData); // 解码 Base64 数据
+
+        // 解析解码后的 JSON 数据
+        const data = JSON.parse(decodedData);
+        
+        // 检查域名并自动跳转
+        startDomainCheck(data);
+      } catch (error) {
+        console.error("数据加载或解析失败:", error);
+        document.getElementById('info').innerText = "数据加载失败，请重试或联系站长";
+      }
+    };
+
+    // 定时检查域名可用性
+    let timer;
+    const startDomainCheck = (hosts) => {
+      const checkDomain = (hosts) => {
+        for (const host of hosts) {
+          let checkUrl;
+          let jumpUrl;
+
+          if (typeof host === 'object' && host !== null) {
+            checkUrl = host.checkUrl;
+            jumpUrl = host.jumpUrl;
+          } else {
+            checkUrl = host;
+            jumpUrl = host;
+          }
+
+          // 请求检查 URL，若返回成功则跳转
+          fetch(checkUrl).then((res) => {
+            if (res.ok && res.status === 200) {
+              window.location.href = joinUrlAndPath(jumpUrl, path) + location.search;
+            }
+          }).catch(error => {
+            console.error("检查域名失败:", error);
+          });
+        }
+      };
+
+      // 每3秒重试一次检查
+      clearInterval(timer); // 清除之前的定时器
+      timer = setInterval(() => {
+        checkDomain(hosts);
+      }, 3000);
+    };
+
+    // 初始化时获取数据并开始检测
+    fetchData();
+  </script>
+</body>
+
+</html>
